@@ -17,6 +17,8 @@
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/Support/SourceMgr.h>
 #include <llvm/IR/LegacyPassManager.h>
+#include <llvm/IR/Instructions.h>
+#include <iostream>
 #include <llvm/Support/ToolOutputFile.h>
 
 #include <llvm/Transforms/Scalar.h>
@@ -32,23 +34,26 @@
 
 using namespace llvm;
 static ManagedStatic<LLVMContext> GlobalContext;
+
 static LLVMContext &getGlobalContext() { return *GlobalContext; }
+
 /* In LLVM 5.0, when  -O0 passed to clang , the functions generated with clang will
  * have optnone attribute which would lead to some transform passes disabled, like mem2reg.
  */
-struct EnableFunctionOptPass: public FunctionPass {
+struct EnableFunctionOptPass : public FunctionPass {
     static char ID;
-    EnableFunctionOptPass():FunctionPass(ID){}
-    bool runOnFunction(Function & F) override{
-        if(F.hasFnAttribute(Attribute::OptimizeNone))
-        {
+
+    EnableFunctionOptPass() : FunctionPass(ID) {}
+
+    bool runOnFunction(Function &F) override {
+        if (F.hasFnAttribute(Attribute::OptimizeNone)) {
             F.removeFnAttr(Attribute::OptimizeNone);
         }
         return true;
     }
 };
 
-char EnableFunctionOptPass::ID=0;
+char EnableFunctionOptPass::ID = 0;
 
 
 ///!TODO TO BE COMPLETED BY YOU FOR ASSIGNMENT 2
@@ -58,12 +63,25 @@ struct FuncPtrPass : public ModulePass {
     static char ID; // Pass identification, replacement for typeid
     FuncPtrPass() : ModulePass(ID) {}
 
+    void handleCallInst(const CallInst *callInst) {
+        errs() << callInst->getCalledFunction()->getName() << "\n";
+    }
 
     bool runOnModule(Module &M) override {
         errs() << "Hello: ";
         errs().write_escaped(M.getName()) << '\n';
         M.dump();
-        errs()<<"------------------------------\n";
+        errs() << "------------------------------\n";
+
+        for (const Function &f: M) {
+            for (const BasicBlock &b: f) {
+                for (const Instruction &i: b) {
+                    if (const CallInst *callInst = dyn_cast<CallInst>(&i))
+                        handleCallInst(callInst);
+                }
+            }
+        }
+
         return false;
     }
 };
@@ -79,11 +97,24 @@ static cl::opt<std::string>
 
 
 int main(int argc, char **argv) {
+    const char *c[2];
+    std::string s("/home/black/llvm-pass/bc/test");
+    if (argc == 1) {
+        std::string t;
+        std::cout << "请输入测试编号：";
+        std::cin >> t;
+        s.append(t).append(".ll");
+        c[1] = s.c_str();
+        // Parse the command line to read the Inputfilename
+        cl::ParseCommandLineOptions(2, c,
+                                    "FuncPtrPass \n My first LLVM too which does not do much.\n");
+    } else {
+        // Parse the command line to read the Inputfilename
+        cl::ParseCommandLineOptions(argc, argv,
+                                    "FuncPtrPass \n My first LLVM too which does not do much.\n");
+    }
     LLVMContext &Context = getGlobalContext();
     SMDiagnostic Err;
-    // Parse the command line to read the Inputfilename
-    cl::ParseCommandLineOptions(argc, argv,
-                                "FuncPtrPass \n My first LLVM too which does not do much.\n");
 
 
     // Load the input module
