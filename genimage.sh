@@ -11,7 +11,7 @@ for file in $cfiles; do
     dot -Tpng -o ./"$name$funcname".png $dot >/dev/null
   done
   opt -dot-callgraph "$file" >/dev/null
-  dot -Tpng -o ./"$name".callgraph.png ./*.callgraph.dot >/dev/null
+  dot -Tpng -o ./"$name".callgraph.png ./*callgraph.dot >/dev/null
   rm .*.dot
-  rm ./*.callgraph.dot
+  rm ./*callgraph.dot
 done
