@@ -61,10 +61,40 @@ char EnableFunctionOptPass::ID = 0;
 ///processed by mem2reg before this pass.
 struct FuncPtrPass : public ModulePass {
     static char ID; // Pass identification, replacement for typeid
+    std::map<const DebugLoc*, std::set<std::string>> Results;
     FuncPtrPass() : ModulePass(ID) {}
 
+    void addResult(const DebugLoc& debugLoc,const std::string& funcName)
+    {
+        std::set<std::string> &s=Results[&debugLoc];
+        s.insert(funcName);
+    }
+
+    void printResult()
+    {
+        for (const auto &result : Results) {
+            errs() << result.first->getLine() << ": ";
+            const auto &funcNames = result.second;
+            for (auto iter = funcNames.begin(); iter != funcNames.end(); iter++) {
+                if (iter != funcNames.begin()) {
+                    errs() << ",";
+                }
+                errs() << *iter;
+            }
+            errs() << "\n";
+        }
+    }
+
     void handleCallInst(const CallInst *callInst) {
-        errs() << callInst->getCalledFunction()->getName() << "\n";
+        if (callInst->getCalledFunction()) {
+            const std::string funcName = callInst->getCalledFunction()->getName().data();
+            if (funcName != "llvm.dbg.value") {
+                addResult(callInst->getDebugLoc(),funcName);
+            }
+        } else
+        {
+            const Value *value = callInst->getCalledOperand();
+        }
     }
 
     bool runOnModule(Module &M) override {
@@ -81,6 +111,8 @@ struct FuncPtrPass : public ModulePass {
                 }
             }
         }
+
+        printResult();
 
         return false;
     }
@@ -103,7 +135,7 @@ int main(int argc, char **argv) {
         std::string t;
         std::cout << "请输入测试编号：";
         std::cin >> t;
-        s.append(t).append(".ll");
+        s.append(t).append(".bc");
         c[1] = s.c_str();
         // Parse the command line to read the Inputfilename
         cl::ParseCommandLineOptions(2, c,
