@@ -19,6 +19,14 @@ add_executable(llvmassignment
         LLVMAssignment.cpp
         )
 
+add_executable(dis
+        LLVMDumpIR.cpp
+        )
+
 target_link_libraries(llvmassignment
+        ${LLVM_LINK_COMPONENTS}
+        )
+
+target_link_libraries(dis
         ${LLVM_LINK_COMPONENTS}
         )
