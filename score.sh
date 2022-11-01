@@ -45,8 +45,8 @@ answers=(
 31 : plus, minus"
 
 "24 : foo
-31 : clever,foo
-32 : plus"
+31 : clever, foo
+32 : plus, minus"
 
 "14 : plus, minus
 24 : foo

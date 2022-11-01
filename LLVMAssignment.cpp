@@ -94,7 +94,6 @@ struct FuncPtrPass : public ModulePass {
         handleValue(returnInst->getReturnValue(), debugLoc);
     }
 
-    /// 过不了测试样例14，因为没有进行敏感流分析
     void handleArgument(const Argument *argument, const DebugLoc &debugLoc) {
         const Function *parentFunc = argument->getParent();
         for (const User *user: parentFunc->users()) {
