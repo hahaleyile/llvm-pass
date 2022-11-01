@@ -19,6 +19,7 @@
 #include <llvm/IR/LegacyPassManager.h>
 #include <llvm/IR/Instructions.h>
 #include <iostream>
+#include "llvm/IR/InstIterator.h"
 #include <llvm/Support/ToolOutputFile.h>
 
 #include <llvm/Transforms/Scalar.h>
@@ -56,7 +57,6 @@ struct EnableFunctionOptPass : public FunctionPass {
 char EnableFunctionOptPass::ID = 0;
 
 
-///!TODO TO BE COMPLETED BY YOU FOR ASSIGNMENT 2
 ///Updated 11/10/2017 by fargo: make all functions
 ///processed by mem2reg before this pass.
 struct FuncPtrPass : public ModulePass {
@@ -90,12 +90,52 @@ struct FuncPtrPass : public ModulePass {
         }
     }
 
+    void handleReturn(const ReturnInst *returnInst, const DebugLoc &debugLoc) {
+        handleValue(returnInst->getReturnValue(), debugLoc);
+    }
+
+    /// 过不了测试样例14，因为没有进行敏感流分析
     void handleArgument(const Argument *argument, const DebugLoc &debugLoc) {
         const Function *parentFunc = argument->getParent();
         for (const User *user: parentFunc->users()) {
             if (const CallInst *callInst = dyn_cast<CallInst>(user)) {
                 Value *operand = callInst->getArgOperand(argument->getArgNo());
                 handleValue(operand, debugLoc);
+            } else if (const PHINode *phiNode = dyn_cast<PHINode>(user)) {
+                for (const User *phiUser: phiNode->users()) {
+                    if (const CallInst *outerCallInst = dyn_cast<CallInst>(phiUser)) {
+                        Value *operand = outerCallInst->getArgOperand(argument->getArgNo());
+                        handleValue(operand, debugLoc);
+                    } else {
+                        throw std::exception();
+                    }
+                }
+            } else {
+                throw std::exception();
+            }
+        }
+    }
+
+    void handleCall(const CallInst *callInst, const DebugLoc &debugLoc) {
+        Function *function = callInst->getCalledFunction();
+        if (function) {
+            /// 返回值可能不止一个
+            for (inst_iterator it = inst_begin(function), et = inst_end(function); it != et; ++it) {
+                if (const ReturnInst *returnInst = dyn_cast<ReturnInst>(&*it)) {
+                    handleValue(returnInst, debugLoc);
+                }
+            }
+        } else {
+            if (const PHINode *phiNode = dyn_cast<PHINode>(callInst->getCalledOperand())) {
+                for (Value *value: phiNode->incoming_values()) {
+                    if ((function = dyn_cast<Function>(value))) {
+                        for (inst_iterator it = inst_begin(function), et = inst_end(function); it != et; ++it) {
+                            if (const ReturnInst *returnInst = dyn_cast<ReturnInst>(&*it)) {
+                                handleValue(returnInst, debugLoc);
+                            }
+                        }
+                    }
+                }
             } else {
                 throw std::exception();
             }
@@ -113,6 +153,10 @@ struct FuncPtrPass : public ModulePass {
             if (strcmp(function->getName().data(), "llvm.dbg.value") != 0) {
                 addResult(debugLoc, function->getName().data());
             }
+        } else if (const ReturnInst *returnInst = dyn_cast<ReturnInst>(value)) {
+            handleReturn(returnInst, debugLoc);
+        } else if (const CallInst *callInst = dyn_cast<CallInst>(value)) {
+            handleCall(callInst, debugLoc);
         } else {
             auto t = value->getType();
             value->dump();
