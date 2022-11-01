@@ -86,11 +86,7 @@ struct FuncPtrPass : public ModulePass {
 
     void handlePHINode(const PHINode *phiNode, const DebugLoc &debugLoc) {
         for (const Value *node: phiNode->incoming_values()) {
-            if (const Function *function = dyn_cast<Function>(node)) {
-                addResult(debugLoc, function->getName().data());
-            } else {
-                handleValue(node, debugLoc);
-            }
+            handleValue(node, debugLoc);
         }
     }
 
@@ -113,30 +109,28 @@ struct FuncPtrPass : public ModulePass {
             handleArgument(argument, debugLoc);
         } else if (isa<ConstantPointerNull>(value)) {
             return;
+        } else if (const Function *function = dyn_cast<Function>(value)) {
+            if (strcmp(function->getName().data(), "llvm.dbg.value") != 0) {
+                addResult(debugLoc, function->getName().data());
+            }
         } else {
+            auto t = value->getType();
             value->dump();
             throw std::exception();
         }
     }
 
     void handleCallInst(const CallInst *callInst) {
-        if (callInst->getCalledFunction()) {
-            const std::string funcName = callInst->getCalledFunction()->getName().data();
-            if (funcName != "llvm.dbg.value") {
-                addResult(callInst->getDebugLoc(), funcName);
-            }
-        } else {
-            /// https://www.llvm.org/docs/ProgrammersManual.html#the-value-class
-            /// One important aspect of LLVM is that there is no distinction between an SSA variable and the operation that produces it.
-            /// Because of this, any reference to the value produced by an instruction
-            /// (or the value available as an incoming argument, for example)
-            /// is represented as a direct pointer to the instance of the class that represents this value.
-            /// Although this may take some getting used to,
-            /// it simplifies the representation and makes it easier to manipulate.
-            const Value *value = callInst->getCalledOperand();
+        /// https://www.llvm.org/docs/ProgrammersManual.html#the-value-class
+        /// One important aspect of LLVM is that there is no distinction between an SSA variable and the operation that produces it.
+        /// Because of this, any reference to the value produced by an instruction
+        /// (or the value available as an incoming argument, for example)
+        /// is represented as a direct pointer to the instance of the class that represents this value.
+        /// Although this may take some getting used to,
+        /// it simplifies the representation and makes it easier to manipulate.
+        const Value *value = callInst->getCalledOperand();
 
-            handleValue(value, callInst->getDebugLoc());
-        }
+        handleValue(value, callInst->getDebugLoc());
     }
 
     bool runOnModule(Module &M) override {
