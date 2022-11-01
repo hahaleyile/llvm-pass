@@ -61,23 +61,22 @@ char EnableFunctionOptPass::ID = 0;
 ///processed by mem2reg before this pass.
 struct FuncPtrPass : public ModulePass {
     static char ID; // Pass identification, replacement for typeid
-    std::map<const DebugLoc*, std::set<std::string>> Results;
+    std::map<const DebugLoc *, std::set<std::string>> Results;
+
     FuncPtrPass() : ModulePass(ID) {}
 
-    void addResult(const DebugLoc& debugLoc,const std::string& funcName)
-    {
-        std::set<std::string> &s=Results[&debugLoc];
+    void addResult(const DebugLoc &debugLoc, const std::string &funcName) {
+        std::set<std::string> &s = Results[&debugLoc];
         s.insert(funcName);
     }
 
-    void printResult()
-    {
-        for (const auto &result : Results) {
-            errs() << result.first->getLine() << ": ";
+    void printResult() {
+        for (const auto &result: Results) {
+            errs() << result.first->getLine() << " : ";
             const auto &funcNames = result.second;
             for (auto iter = funcNames.begin(); iter != funcNames.end(); iter++) {
                 if (iter != funcNames.begin()) {
-                    errs() << ",";
+                    errs() << ", ";
                 }
                 errs() << *iter;
             }
@@ -89,11 +88,29 @@ struct FuncPtrPass : public ModulePass {
         if (callInst->getCalledFunction()) {
             const std::string funcName = callInst->getCalledFunction()->getName().data();
             if (funcName != "llvm.dbg.value") {
-                addResult(callInst->getDebugLoc(),funcName);
+                addResult(callInst->getDebugLoc(), funcName);
             }
-        } else
-        {
+        } else {
+            /// https://www.llvm.org/docs/ProgrammersManual.html#the-value-class
+            /// One important aspect of LLVM is that there is no distinction between an SSA variable and the operation that produces it.
+            /// Because of this, any reference to the value produced by an instruction
+            /// (or the value available as an incoming argument, for example)
+            /// is represented as a direct pointer to the instance of the class that represents this value.
+            /// Although this may take some getting used to,
+            /// it simplifies the representation and makes it easier to manipulate.
             const Value *value = callInst->getCalledOperand();
+
+            if (const PHINode *phiNode = dyn_cast<PHINode>(value)) {
+                for (const Value *node: phiNode->incoming_values()) {
+                    if (const Function *function = dyn_cast<Function>(node)) {
+                        addResult(callInst->getDebugLoc(), function->getName().data());
+                    } else {
+                        errs() << value->getName().data() << "\n";
+                    }
+                }
+            } else {
+                errs() << value->getName().data() << "\n";
+            }
         }
     }
 
