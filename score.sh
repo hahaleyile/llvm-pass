@@ -71,6 +71,7 @@ for i in {0..15} ; do
   else
     echo "error"
   fi
+  echo "---------------"
 
   echo ""
 done
