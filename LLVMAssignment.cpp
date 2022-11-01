@@ -105,21 +105,14 @@ struct FuncPtrPass : public ModulePass {
                     if (const Function *function = dyn_cast<Function>(node)) {
                         addResult(callInst->getDebugLoc(), function->getName().data());
                     } else {
-                        errs() << value->getName().data() << "\n";
                     }
                 }
             } else {
-                errs() << value->getName().data() << "\n";
             }
         }
     }
 
     bool runOnModule(Module &M) override {
-        errs() << "Hello: ";
-        errs().write_escaped(M.getName()) << '\n';
-        M.dump();
-        errs() << "------------------------------\n";
-
         for (const Function &f: M) {
             for (const BasicBlock &b: f) {
                 for (const Instruction &i: b) {
