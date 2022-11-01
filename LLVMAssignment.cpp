@@ -84,6 +84,41 @@ struct FuncPtrPass : public ModulePass {
         }
     }
 
+    void handlePHINode(const PHINode *phiNode, const DebugLoc &debugLoc) {
+        for (const Value *node: phiNode->incoming_values()) {
+            if (const Function *function = dyn_cast<Function>(node)) {
+                addResult(debugLoc, function->getName().data());
+            } else {
+                handleValue(node, debugLoc);
+            }
+        }
+    }
+
+    void handleArgument(const Argument *argument, const DebugLoc &debugLoc) {
+        const Function *parentFunc = argument->getParent();
+        for (const User *user: parentFunc->users()) {
+            if (const CallInst *callInst = dyn_cast<CallInst>(user)) {
+                Value *operand = callInst->getArgOperand(argument->getArgNo());
+                handleValue(operand, debugLoc);
+            } else {
+                throw std::exception();
+            }
+        }
+    }
+
+    void handleValue(const Value *value, const DebugLoc &debugLoc) {
+        if (const PHINode *phiNode = dyn_cast<PHINode>(value)) {
+            handlePHINode(phiNode, debugLoc);
+        } else if (const Argument *argument = dyn_cast<Argument>(value)) {
+            handleArgument(argument, debugLoc);
+        } else if (isa<ConstantPointerNull>(value)) {
+            return;
+        } else {
+            value->dump();
+            throw std::exception();
+        }
+    }
+
     void handleCallInst(const CallInst *callInst) {
         if (callInst->getCalledFunction()) {
             const std::string funcName = callInst->getCalledFunction()->getName().data();
@@ -100,15 +135,7 @@ struct FuncPtrPass : public ModulePass {
             /// it simplifies the representation and makes it easier to manipulate.
             const Value *value = callInst->getCalledOperand();
 
-            if (const PHINode *phiNode = dyn_cast<PHINode>(value)) {
-                for (const Value *node: phiNode->incoming_values()) {
-                    if (const Function *function = dyn_cast<Function>(node)) {
-                        addResult(callInst->getDebugLoc(), function->getName().data());
-                    } else {
-                    }
-                }
-            } else {
-            }
+            handleValue(value, callInst->getDebugLoc());
         }
     }
 
