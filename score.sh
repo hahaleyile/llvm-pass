@@ -55,7 +55,7 @@ answers=(
 "14 : foo
 17 : clever
 24 : clever1
-25 : minus"
+25 : plus"
 
 "14 : foo
 17 : clever

@@ -110,6 +110,7 @@ struct FuncPtrPass : public ModulePass {
                     }
                 }
             } else {
+                user->dump();
                 throw std::exception();
             }
         }
@@ -136,6 +137,7 @@ struct FuncPtrPass : public ModulePass {
                     }
                 }
             } else {
+                callInst->getCalledOperand()->dump();
                 throw std::exception();
             }
         }
