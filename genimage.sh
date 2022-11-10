@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 cd bc
-cfiles=$(ls *.ll)
+cfiles="$(ls *.ll)"
 for file in $cfiles; do
   name=$(basename -s .ll "$file")
   opt -dot-cfg "$file" >/dev/null

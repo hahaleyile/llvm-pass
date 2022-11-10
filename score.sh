@@ -51,10 +51,31 @@ answers=(
 "14 : plus, minus
 24 : foo
 27 : foo"
+
+"14 : foo
+17 : clever
+24 : clever1
+25 : minus"
+
+"14 : foo
+17 : clever
+24 : clever1
+25 : plus"
+
+"14 : foo
+18 : clever, foo
+30 : clever1
+31 : plus"
+
+"14 : foo
+18 : clever, foo
+24 : clever, foo
+36 : clever1
+37 : plus"
 )
 
 
-for i in {0..15} ; do
+for i in {0..19} ; do
   echo "$i"
   echo "---------------"
   echo -e "${answers[$i]}"
