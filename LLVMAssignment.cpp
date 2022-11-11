@@ -61,7 +61,13 @@ char EnableFunctionOptPass::ID = 0;
 ///processed by mem2reg before this pass.
 struct FuncPtrPass : public ModulePass {
     static char ID; // Pass identification, replacement for typeid
-    std::map<const DebugLoc *, std::set<std::string>> Results;
+    struct cmpByDebugLine {
+        bool operator()(const DebugLoc *left, const DebugLoc *right) const {
+            return left->getLine() < right->getLine();
+        }
+    };
+
+    std::map<const DebugLoc *, std::set<std::string>, cmpByDebugLine> Results;
 
     FuncPtrPass() : ModulePass(ID) {}
 
@@ -89,7 +95,7 @@ struct FuncPtrPass : public ModulePass {
             handleValue(node, debugLoc);
         }
         if (isa<Function>(phiNode->incoming_values().end()) && from_call)
-            from_call= false;
+            from_call = false;
     }
 
     void handleReturn(const ReturnInst *returnInst, const DebugLoc &debugLoc) {

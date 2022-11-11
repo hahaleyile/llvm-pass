@@ -1,35 +1,35 @@
 #!/usr/bin/env bash
 
 answers=(
-  "10 : plus"
+"10 : plus"
 
-  "22 : plus"
+"22 : plus"
 
-  "24 : plus, minus"
+"24 : minus, plus"
 
-  "27 : plus, minus"
+"27 : minus, plus"
 
-  "10 : plus, minus
+"10 : minus, plus
 26 : foo
 33 : foo"
 
-"33 : plus, minus"
+"33 : minus, plus"
 
-"10 : plus, minus
+"10 : minus, plus
 26 : clever"
 
-"10 : plus, minus
+"10 : minus, plus
 28 : clever
 30 : clever"
 
-"10 : plus, minus
+"10 : minus, plus
 26 : clever"
 
-"10 : plus, minus
+"10 : minus, plus
 14 : foo
 30 : clever"
 
-"15 : plus, minus
+"15 : minus, plus
 19 : foo
 35 : clever"
 
@@ -38,17 +38,17 @@ answers=(
 32 : clever"
 
 "15 : foo
-16 : plus, minus
+16 : minus, plus
 32 : clever"
 
-"30 : foo, clever
-31 : plus, minus"
+"30 : clever, foo
+31 : minus, plus"
 
 "24 : foo
 31 : clever, foo
-32 : plus, minus"
+32 : minus, plus"
 
-"14 : plus, minus
+"14 : minus, plus
 24 : foo
 27 : foo"
 
@@ -89,11 +89,18 @@ for i in {0..19} ; do
   fi
   if output="$(./cmake-build-debug/llvmassignment "./bc/test$str.bc" 2>&1)"; then
     echo -e "$output"
+    echo "---------------"
+    if [[ "$output" == "${answers[$i]}" ]]; then
+      echo "true"
+    else
+      echo "false"
+    fi
   else
     echo "error"
+    echo "---------------"
+    echo "false"
   fi
   echo "---------------"
 
   echo ""
 done
-
