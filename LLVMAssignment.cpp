@@ -20,7 +20,7 @@
 #include <llvm/IR/Instructions.h>
 #include <iostream>
 #include "llvm/IR/InstIterator.h"
-#include <llvm/Support/ToolOutputFile.h>
+#include "llvm/IR/Value.h"
 
 #include <llvm/Transforms/Scalar.h>
 #include <llvm/Transforms/Utils.h>
@@ -88,6 +88,8 @@ struct FuncPtrPass : public ModulePass {
         for (const Value *node: phiNode->incoming_values()) {
             handleValue(node, debugLoc);
         }
+        if (isa<Function>(phiNode->incoming_values().end()) && from_call)
+            from_call= false;
     }
 
     void handleReturn(const ReturnInst *returnInst, const DebugLoc &debugLoc) {
@@ -96,6 +98,12 @@ struct FuncPtrPass : public ModulePass {
 
     void handleArgument(const Argument *argument, const DebugLoc &debugLoc) {
         const Function *parentFunc = argument->getParent();
+        if (parentFunc->user_empty()) {
+            const CallInst *callInst = indirect_call.top();
+            from_call = false;
+            handleValue(callInst->getArgOperand(argument->getArgNo()), debugLoc);
+            return;
+        }
         for (const User *user: parentFunc->users()) {
             if (const CallInst *callInst = dyn_cast<CallInst>(user)) {
                 Value *operand = callInst->getArgOperand(argument->getArgNo());
@@ -104,7 +112,13 @@ struct FuncPtrPass : public ModulePass {
                 for (const User *phiUser: phiNode->users()) {
                     if (const CallInst *outerCallInst = dyn_cast<CallInst>(phiUser)) {
                         Value *operand = outerCallInst->getArgOperand(argument->getArgNo());
-                        handleValue(operand, debugLoc);
+                        if (from_call) {
+                            from_call = false;
+                            operand = indirect_call.top()->getArgOperand(argument->getArgNo());
+                            handleValue(operand, debugLoc);
+                            from_call = true;
+                        } else
+                            handleValue(operand, debugLoc);
                     } else {
                         throw std::exception();
                     }
@@ -115,6 +129,9 @@ struct FuncPtrPass : public ModulePass {
             }
         }
     }
+
+    bool from_call = false;
+    std::stack<const CallInst *> indirect_call;
 
     void handleCall(const CallInst *callInst, const DebugLoc &debugLoc) {
         Function *function = callInst->getCalledFunction();
@@ -136,6 +153,10 @@ struct FuncPtrPass : public ModulePass {
                         }
                     }
                 }
+            } else if (const Argument *argument = dyn_cast<Argument>(callInst->getCalledOperand())) {
+                from_call = true;
+                indirect_call.push(callInst);
+                handleValue(argument, debugLoc);
             } else {
                 callInst->getCalledOperand()->dump();
                 throw std::exception();
@@ -150,9 +171,18 @@ struct FuncPtrPass : public ModulePass {
             handleArgument(argument, debugLoc);
         } else if (isa<ConstantPointerNull>(value)) {
             return;
-        } else if (const Function *function = dyn_cast<Function>(value)) {
+        } else if (Function *function = const_cast<Function *>(dyn_cast<Function>(value))) {
             if (strcmp(function->getName().data(), "llvm.dbg.value") != 0) {
-                addResult(debugLoc, function->getName().data());
+                if (!from_call)
+                    addResult(debugLoc, function->getName().data());
+                else {
+                    for (inst_iterator it = inst_begin(function), et = inst_end(function); it != et; ++it) {
+                        if (const ReturnInst *returnInst = dyn_cast<ReturnInst>(&*it)) {
+                            from_call = true;
+                            handleValue(returnInst, debugLoc);
+                        }
+                    }
+                }
             }
         } else if (const ReturnInst *returnInst = dyn_cast<ReturnInst>(value)) {
             handleReturn(returnInst, debugLoc);
