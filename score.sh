@@ -71,7 +71,7 @@ answers=(
 18 : clever, foo
 24 : clever, foo
 36 : clever1
-37 : plus"
+37 : minus, plus"
 )
 
 
